@@ -1,27 +1,4 @@
-
-/* Copyright (c) Mark J. Kilgard, 1994, 1997.  */
-
-/* This program is freely distributable without licensing fees 
-   and is provided without guarantee or warrantee expressed or 
-   implied. This program is -not- in the public domain. */
-
-/* Very simple example of how to achieve reflections on a flat
-   surface using OpenGL blending.  The example has a mode using
-   OpenGL stenciling to avoid drawing the reflection not on the top of the
-   floor.  Initially, stenciling is not used so if you look (by holding
-   down the left mouse button and moving) at the dinosaur from "below"
-   the floor, you'll see a bogus dinosaur and appreciate how the basic
-   technique works.  Enable stenciling with the popup menu and the
-   bogus dinosaur goes away!  Also, notice that OpenGL lighting works
-   correctly with reflections. */
-
-/* Check out the comments in the "redraw" routine to see how the
-   reflection blending and surface stenciling is done. */
-
-/* This program is derived from glutdino.c */
-
 /* Compile: cc -o reflectdino reflectdino.c -lglut -lGLU -lGL -lXmu -lXext -lX11 -lm */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,6 +27,7 @@ float fireX = 10, fireY = 0, fireZ = 0;
 int isfiring = 0;
 int isTreeGreen = 0;
 float jump_high = 3.0;
+int hp = 10;
 /* *INDENT-OFF* */
 GLfloat body[][2] = { {0, 3}, {1, 1}, {5, 1}, {8, 4}, {10, 4}, {11, 5},
   {11, 11.5}, {13, 12}, {13, 13}, {10, 13.5}, {13, 14}, {13, 15}, {11, 16},
@@ -149,7 +127,7 @@ void makeDinosaur(void){
             TREE_SIDE, TREE_EDGE, TREE_WHOLE);
     extrudeSolidFromPolygon(tree_green, sizeof(tree_green), 3.0,
             TREEG_SIDE, TREEG_EDGE, TREEG_WHOLE);
-    extrudeSolidFromPolygon(fire, sizeof(fire), 3.0,
+    extrudeSolidFromPolygon(fire, sizeof(fire), 2.0,
             FIRE_SIDE, FIRE_EDGE, FIRE_WHOLE);
 }
 
@@ -204,7 +182,6 @@ void drawFloor(void) {
     glVertex3f(54.0, 0.0, 54.0);
     glVertex3f(54.0, 0.0, -36.0);
     glVertex3f(-36.0, 0.0, -36.0);
-    
     glEnd();
     glEnable(GL_LIGHTING);
 }
@@ -239,36 +216,36 @@ void redraw(void){
  with a stencil value of 1 to make sure the reflection only
  lives on the floor, not below the floor. */
 
-      /* Don't update color or depth. */
-      glDisable(GL_DEPTH_TEST);
-      glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        /* Don't update color or depth. */
+        glDisable(GL_DEPTH_TEST);
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-      /* Draw 1 into the stencil buffer. */
-      glEnable(GL_STENCIL_TEST);
-      glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
-      glStencilFunc(GL_ALWAYS, 1, 0xffffffff);
+        /* Draw 1 into the stencil buffer. */
+        glEnable(GL_STENCIL_TEST);
+        glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+        glStencilFunc(GL_ALWAYS, 1, 0xffffffff);
 
-      /* Now render floor; floor pixels just get their stencil set to 1. */
-      drawFloor();
+        /* Now render floor; floor pixels just get their stencil set to 1. */
+        drawFloor();
 
-      /* Re-enable update of color and depth. */ 
-      glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-      glEnable(GL_DEPTH_TEST);
+        /* Re-enable update of color and depth. */ 
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glEnable(GL_DEPTH_TEST);
 
-      /* Now, only render where stencil is set to 1. */
-      glStencilFunc(GL_EQUAL, 1, 0xffffffff);  /* draw if ==1 */
-      glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        /* Now, only render where stencil is set to 1. */
+        glStencilFunc(GL_EQUAL, 1, 0xffffffff);  /* draw if ==1 */
+        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
     }
 
     glPushMatrix();
 
       /* The critical reflection step: Reflect dinosaur through the floor
          (the Y=0 plane) to make a relection. */
-      glScalef(1.0, -1.0, 1.0);
+    glScalef(1.0, -1.0, 1.0);
 
       /* Position lights now in reflected space. */
-      glLightfv(GL_LIGHT0, GL_POSITION, lightZeroPosition);
-      glLightfv(GL_LIGHT1, GL_POSITION, lightOnePosition);
+    glLightfv(GL_LIGHT0, GL_POSITION, lightZeroPosition);
+    glLightfv(GL_LIGHT1, GL_POSITION, lightOnePosition);
 
       /* XXX Ugh, unfortunately the back face culling reverses when we reflect
  the dinosaur.  Easy solution is just disable back face culling for
@@ -276,64 +253,65 @@ void redraw(void){
  up by the scale; enabled normalize to ensure normals are still
  properly normalized despite the scaling.  We could have fixed the
  dinosaur rendering code, but this is more expedient. */
-      glEnable(GL_NORMALIZE);
-      glCullFace(GL_FRONT);
+    glEnable(GL_NORMALIZE);
+    glCullFace(GL_FRONT);
 
-      /* Draw the reflected dinosaur. */
-      drawDinosaur();
-      if(isTreeGreen)
-          drawTreeG();
-      else
-          drawTree();
+    /* Draw the reflected dinosaur. */
+    drawDinosaur();
+    if(isTreeGreen)
+        drawTreeG();
+    else
+        drawTree();
+    if(isfiring > 0)
+        drawFire();
+
+    /* Disable noramlize again and re-enable back face culling. */
+    glDisable(GL_NORMALIZE);
+    glCullFace(GL_BACK);
+
+    glPopMatrix();
+
+    /* Restore light positions on returned from reflected space. */
+    glLightfv(GL_LIGHT0, GL_POSITION, lightZeroPosition);
+    glLightfv(GL_LIGHT1, GL_POSITION, lightOnePosition);
 
 
-      /* Disable noramlize again and re-enable back face culling. */
-      glDisable(GL_NORMALIZE);
-      glCullFace(GL_BACK);
+    if (useStencil) {
+        /* Don't want to be using stenciling for drawing the actual dinosaur
+           (not its reflection) and the floor. */
+        glDisable(GL_STENCIL_TEST);
+    }
 
-      glPopMatrix();
+    /* Back face culling will get used to only draw either the top or the
+       bottom floor.  This let's us get a floor with two distinct
+       appearances.  The top floor surface is reflective and kind of red.
+       The bottom floor surface is not reflective and blue. */
 
-      /* Restore light positions on returned from reflected space. */
-      glLightfv(GL_LIGHT0, GL_POSITION, lightZeroPosition);
-      glLightfv(GL_LIGHT1, GL_POSITION, lightOnePosition);
+    /* Draw "top" of floor.  Use blending to blend in reflection. */
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(0.7, 0.0, 0.0, 0.3);
+    drawFloor();
+    glDisable(GL_BLEND);
 
+    /* Draw "bottom" of floor in blue. */
+    glFrontFace(GL_CW);  /* Switch face orientation. */
+    glColor4f(0.1, 0.1, 0.7, 1.0);
+    drawFloor();
+    glFrontFace(GL_CCW);
 
-      if (useStencil) {
-          /* Don't want to be using stenciling for drawing the actual dinosaur
-             (not its reflection) and the floor. */
-          glDisable(GL_STENCIL_TEST);
-      }
+    /* Draw "actual" dinosaur, not its reflection. */
+    drawDinosaur();
+    if(isTreeGreen)
+        drawTreeG();
+    else
+        drawTree();
+    if(isfiring > 0)
+        drawFire();
 
-      /* Back face culling will get used to only draw either the top or the
-         bottom floor.  This let's us get a floor with two distinct
-         appearances.  The top floor surface is reflective and kind of red.
-         The bottom floor surface is not reflective and blue. */
+    glPopMatrix();
 
-      /* Draw "top" of floor.  Use blending to blend in reflection. */
-      glEnable(GL_BLEND);
-      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-      glColor4f(0.7, 0.0, 0.0, 0.3);
-      drawFloor();
-      glDisable(GL_BLEND);
-
-      /* Draw "bottom" of floor in blue. */
-      glFrontFace(GL_CW);  /* Switch face orientation. */
-      glColor4f(0.1, 0.1, 0.7, 1.0);
-      drawFloor();
-      glFrontFace(GL_CCW);
-
-      /* Draw "actual" dinosaur, not its reflection. */
-      drawDinosaur();
-      if(isTreeGreen)
-          drawTreeG();
-      else
-          drawTree();
-      if(isfiring > 0)
-          drawFire();
-
-      glPopMatrix();
-
-      glutSwapBuffers();
+    glutSwapBuffers();
 }
 
 /* ARGSUSED2 */
@@ -420,6 +398,11 @@ void controlToggle(int value){
                 glutIdleFunc(idle);
             }
             break;
+        case 5:
+            isTreeGreen = 0;
+            hp = 10;
+            jump_high = 3.0;
+            break;
     }
     glutPostRedisplay();
 }
@@ -449,7 +432,6 @@ void visible(int vis){
         glutIdleFunc(NULL);
 }
 
-int hp = 10;
 
 int impactCheck(int x, int z){
     if(abs(x-treeX) < 10 && abs(z-treeZ) < 5){
@@ -517,7 +499,7 @@ void keyboard(unsigned char key, int x, int y){
             isfiring = 1;
             fireX = moveX + 10;
             fireY = jump;
-            fireZ = moveZ;
+            fireZ = moveZ+0.7;
             secCount = 0;
             glutTimerFunc(1, timerProc, 1);
             break;
@@ -550,6 +532,7 @@ int main(int argc, char **argv){
     glutAddMenuEntry("Toggle left light", 2);
     glutAddMenuEntry("Toggle stenciling out reflection artifacts", 3);
     glutAddMenuEntry("Toggle Jump", 4);
+    glutAddMenuEntry("Reset Tree", 5);
     glutAttachMenu(GLUT_RIGHT_BUTTON);
     makeDinosaur();
     glEnable(GL_CULL_FACE);
